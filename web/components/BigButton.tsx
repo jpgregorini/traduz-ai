@@ -1,18 +1,24 @@
-type Props = {
-  active: boolean;
-  onStart: () => void;
+type Props =
+  | { mode: "idle"; onClick: () => void }
+  | { mode: "listening"; onClick: () => void }
+  | { mode: "paused"; onClick: () => void };
+
+const LABELS: Record<Props["mode"], string> = {
+  idle: "iniciar",
+  listening: "pausar",
+  paused: "retomar",
 };
 
-/** Botão central grande: inicia a sessão. */
-export function BigButton({ active, onStart }: Props) {
+/** Botão central grande: alterna entre iniciar, pausar e retomar a sessão. */
+export function BigButton({ mode, onClick }: Props) {
+  const isListening = mode === "listening";
   return (
     <button
-      onClick={onStart}
-      disabled={active}
+      onClick={onClick}
       className={`h-40 w-40 rounded-full text-white text-xl font-semibold shadow-lg transition
-        ${active ? "bg-green-500 animate-pulse" : "bg-blue-600 active:scale-95"}`}
+        ${isListening ? "bg-green-500 animate-pulse" : "bg-blue-600 active:scale-95"}`}
     >
-      {active ? "ouvindo" : "iniciar"}
+      {LABELS[mode]}
     </button>
   );
 }
