@@ -1,0 +1,27 @@
+# dependências
+node_modules/
+web/node_modules/
+
+# build Next.js
+.next/
+web/.next/
+out/
+web/out/
+
+# variáveis de ambiente (NUNCA commitar chaves)
+.env
+.env.local
+.env*.local
+web/.env
+web/.env.local
+web/.env*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# sistema
+.DS_Store
+
+# vercel
+.vercel
