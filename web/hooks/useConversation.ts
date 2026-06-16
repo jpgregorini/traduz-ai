@@ -86,6 +86,20 @@ export function useConversation() {
     }
   }, [start]);
 
+  const pause = useCallback(() => {
+    stop();
+    dispatch({ type: "SET_STATUS", status: "pausado" });
+  }, [stop]);
+
+  const resume = useCallback(async () => {
+    try {
+      await start();
+      dispatch({ type: "SET_STATUS", status: "ouvindo" });
+    } catch {
+      dispatch({ type: "ERROR", error: "Falha ao retomar microfone." });
+    }
+  }, [start]);
+
   const reset = useCallback(() => {
     stop();
     dispatch({ type: "RESET" });
@@ -93,5 +107,5 @@ export function useConversation() {
 
   const toggleMute = useCallback(() => dispatch({ type: "TOGGLE_MUTE" }), []);
 
-  return { state, listening, begin, reset, toggleMute };
+  return { state, listening, begin, pause, resume, reset, toggleMute };
 }
