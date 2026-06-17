@@ -98,10 +98,13 @@ bool translate(const uint8_t* wav, size_t wavLen, const String& historyJson, Tra
   char* body = (char*)ps_malloc(CAP);
   if (!body) { Serial.println("[net] sem PSRAM p/ corpo"); client->stop(); return false; }
   size_t bodyLen = 0;
+  const unsigned long readDeadline = millis() + 15000; // evita travar se o server não fechar
   while (client->connected() || client->available()) {
     while (client->available() && bodyLen < CAP - 1) {
       body[bodyLen++] = (char)client->read();
     }
+    if (bodyLen >= CAP - 1) { Serial.println("[net] resposta truncada (excedeu o buffer)"); break; }
+    if (millis() > readDeadline) { Serial.println("[net] timeout lendo resposta"); break; }
     if (!client->available() && !client->connected()) break;
   }
   body[bodyLen] = '\0';
