@@ -3,6 +3,8 @@
 import { useCallback, useReducer, useRef } from "react";
 import { initialState, reducer } from "@/lib/conversationMachine";
 import { encodeWAV, playBase64Audio } from "@/lib/audio";
+import { createBusyGate } from "@/lib/guard";
+import { playWithVadGuard } from "@/lib/playback";
 import { useMicVAD } from "@/hooks/useMicVAD";
 import type { LanguagePair, TranslateResult, Turn } from "@/lib/types";
 
@@ -20,6 +22,9 @@ export function useConversation() {
   turnsRef.current = state.turns;
   const mutedRef = useRef(state.muted);
   mutedRef.current = state.muted;
+
+  // Porta de exclusão: descarta falas que chegam durante processamento ativo.
+  const gateRef = useRef(createBusyGate());
 
   const handleSpeech = useCallback(async (audio: Float32Array) => {
     const wav = encodeWAV(audio, SAMPLE_RATE);
@@ -42,6 +47,7 @@ export function useConversation() {
 
     // Fase ACTIVE: traduz a fala.
     if (phaseRef.current === "ACTIVE" && pairRef.current) {
+      if (!gateRef.current.tryEnter()) return; // já há tradução em curso → descarta
       try {
         dispatch({ type: "SET_STATUS", status: "traduzindo…" });
         const fd = new FormData();
@@ -59,19 +65,30 @@ export function useConversation() {
             { role: "translation", lang: r.targetLang, text: r.targetText },
           ],
         });
+        dispatch({ type: "SET_STATUS", status: mutedRef.current ? "ouvindo" : "falando…" });
+        // pauseMicRef/resumeMicRef são refs atualizadas após useMicVAD (abaixo).
+        // Usar via ref evita stale closure e mantém deps do useCallback vazios.
+        await playWithVadGuard({
+          audioBase64: r.audioBase64,
+          muted: mutedRef.current,
+          play: playBase64Audio,
+          pauseMic: () => pauseMicRef.current(),
+          resumeMic: () => resumeMicRef.current(),
+        });
         dispatch({ type: "SET_STATUS", status: "ouvindo" });
-        if (!mutedRef.current) {
-          dispatch({ type: "SET_STATUS", status: "falando…" });
-          await playBase64Audio(r.audioBase64);
-          dispatch({ type: "SET_STATUS", status: "ouvindo" });
-        }
       } catch (e) {
         dispatch({ type: "SET_STATUS", status: e instanceof Error ? e.message : "erro" });
+      } finally {
+        gateRef.current.release();
       }
     }
   }, []);
 
-  const { listening, start, stop } = useMicVAD(handleSpeech);
+  const { listening, start, stop, pauseMic, resumeMic } = useMicVAD(handleSpeech);
+  // Espelhos em ref para uso dentro do handleSpeech (que é definido antes do
+  // useMicVAD). O padrão é idêntico ao usado para phaseRef, pairRef etc.
+  const pauseMicRef = useRef(pauseMic); pauseMicRef.current = pauseMic;
+  const resumeMicRef = useRef(resumeMic); resumeMicRef.current = resumeMic;
 
   const begin = useCallback(async () => {
     dispatch({ type: "BEGIN" });
