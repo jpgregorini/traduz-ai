@@ -27,6 +27,14 @@ describe("mergeGlossary", () => {
     const out = mergeGlossary([], [{ term: "", translations: { pt: "x" } } as GlossaryEntry]);
     expect(out).toHaveLength(0);
   });
+
+  it("next overrides conflicting translations", () => {
+    const prev: GlossaryEntry[] = [{ term: "João", translations: { pt: "João_old", en: "John_old" } }];
+    const next: GlossaryEntry[] = [{ term: "joão", translations: { pt: "João_new", en: "John_new" } }];
+    const out = mergeGlossary(prev, next);
+    expect(out).toHaveLength(1);
+    expect(out[0].translations).toEqual({ pt: "João_new", en: "John_new" });
+  });
 });
 
 describe("formatGlossary", () => {
