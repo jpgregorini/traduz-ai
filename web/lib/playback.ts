@@ -15,8 +15,9 @@ export async function playWithVadGuard(opts: {
   opts.pauseMic();
   try {
     await opts.play(opts.audioBase64);
-  } catch {
-    // Erro de playback é silencioso aqui; o importante é retomar o mic.
+  } catch (e) {
+    // Erro de playback não interrompe o fluxo; o importante é retomar o mic.
+    console.warn("[playback] erro ao tocar áudio:", e);
   } finally {
     await opts.resumeMic();
   }

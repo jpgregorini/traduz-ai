@@ -21,5 +21,5 @@ export type TranslateResult = {
   targetText: string;
   targetLang: string;
   audioBase64: string; // MP3 em base64
-  glossary?: GlossaryEntry[]; // termos novos/canônicos desta fala
+  glossary: GlossaryEntry[]; // termos novos/canônicos desta fala (vazio se nenhum)
 };

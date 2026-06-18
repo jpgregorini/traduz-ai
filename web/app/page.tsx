@@ -21,8 +21,10 @@ export default function Home() {
       const res = await fetch("/api/recap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pair: state.pair, turns: state.turns }),
+        // Limita o histórico enviado para não estourar contexto/custo em conversas longas.
+        body: JSON.stringify({ pair: state.pair, turns: state.turns.slice(-40) }),
       });
+      if (!res.ok) throw new Error("Falha ao gerar o resumo.");
       const data = await res.json();
       setRecap({ open: true, loading: false, text: data.summary ?? data.error ?? "" });
     } catch {
@@ -59,7 +61,11 @@ export default function Home() {
             <button onClick={reset} className="text-sm text-gray-500 underline">
               resetar idiomas
             </button>
-            <button onClick={gerarRecap} className="text-sm text-gray-500 underline">
+            <button
+              onClick={gerarRecap}
+              disabled={recap.loading}
+              className="text-sm text-gray-500 underline disabled:opacity-50"
+            >
               resumo
             </button>
           </div>

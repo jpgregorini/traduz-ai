@@ -60,6 +60,6 @@ describe("glossário e hidratação", () => {
     });
     expect(s.phase).toBe("ACTIVE");
     expect(s.turns).toHaveLength(1);
-    expect(s.status).toBe("ouvindo");
+    expect(s.status).toBe("pausado");
   });
 });

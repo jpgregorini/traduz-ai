@@ -57,7 +57,8 @@ export function reducer(state: ConversationState, action: Action): ConversationS
         pair: action.pair,
         turns: action.turns,
         glossary: action.glossary,
-        status: "ouvindo",
+        // VAD não retoma sozinho após reidratar — usuário toca "retomar".
+        status: "pausado",
       };
     default:
       return state;

@@ -85,7 +85,7 @@ export function useConversation() {
             { role: "translation", lang: r.targetLang, text: r.targetText },
           ],
         });
-        if (r.glossary && r.glossary.length) {
+        if (r.glossary.length) {
           dispatch({ type: "SET_GLOSSARY", glossary: mergeGlossary(glossaryRef.current, r.glossary) });
         }
         dispatch({ type: "SET_STATUS", status: mutedRef.current ? "ouvindo" : "falando…" });
