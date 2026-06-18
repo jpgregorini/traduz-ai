@@ -10,6 +10,15 @@ voz → STT (gpt-4o-transcribe) → tradução com contexto (gpt-4o-mini) → TT
 
 Captura hands-free com VAD no browser (`@ricky0123/vad-web`). A chave da OpenAI fica só no servidor.
 
+## Diferenciais vs tradutor genérico
+
+- **Memória de glossário** — nomes próprios e termos de domínio ficam consistentes na conversa inteira.
+- **Voz por falante** — cada idioma usa uma voz distinta (efeito de duas pessoas).
+- **Contexto de conversa** — cada tradução considera os turnos anteriores.
+- **Guarda de eco** — o microfone pausa durante a fala traduzida (sem loop).
+- **Resumo bilíngue** — gere um recap da conversa e compartilhe.
+- **Sessão persistente** — par de idiomas, histórico e glossário sobrevivem ao refresh.
+
 ## Rodar localmente
 
 ```bash

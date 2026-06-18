@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { initialState, reducer } from "@/lib/conversationMachine";
 import { encodeWAV, playBase64Audio } from "@/lib/audio";
+import { mergeGlossary, formatGlossary } from "@/lib/glossary";
+import { createBusyGate } from "@/lib/guard";
+import { loadSession, saveSession, clearSession } from "@/lib/session";
+import { playWithVadGuard } from "@/lib/playback";
 import { useMicVAD } from "@/hooks/useMicVAD";
 import type { LanguagePair, TranslateResult, Turn } from "@/lib/types";
 
@@ -20,6 +24,26 @@ export function useConversation() {
   turnsRef.current = state.turns;
   const mutedRef = useRef(state.muted);
   mutedRef.current = state.muted;
+  const glossaryRef = useRef(state.glossary);
+  glossaryRef.current = state.glossary;
+
+  // Porta de exclusão: descarta falas que chegam durante processamento ativo.
+  const gateRef = useRef(createBusyGate());
+
+  // Reidrata a sessão salva (par, turnos, glossário) ao montar.
+  useEffect(() => {
+    const saved = loadSession();
+    if (saved) {
+      dispatch({ type: "HYDRATE", pair: saved.pair, turns: saved.turns, glossary: saved.glossary });
+    }
+  }, []);
+
+  // Persiste sempre que par/turnos/glossário mudarem em sessão ativa.
+  useEffect(() => {
+    if (state.phase === "ACTIVE" && state.pair) {
+      saveSession({ pair: state.pair, turns: state.turns, glossary: state.glossary });
+    }
+  }, [state.phase, state.pair, state.turns, state.glossary]);
 
   const handleSpeech = useCallback(async (audio: Float32Array) => {
     const wav = encodeWAV(audio, SAMPLE_RATE);
@@ -42,12 +66,14 @@ export function useConversation() {
 
     // Fase ACTIVE: traduz a fala.
     if (phaseRef.current === "ACTIVE" && pairRef.current) {
+      if (!gateRef.current.tryEnter()) return; // já há tradução em curso → descarta
       try {
         dispatch({ type: "SET_STATUS", status: "traduzindo…" });
         const fd = new FormData();
         fd.append("audio", wav, "fala.wav");
         fd.append("pair", JSON.stringify(pairRef.current));
         fd.append("history", JSON.stringify(turnsRef.current.slice(-HISTORY_WINDOW)));
+        fd.append("glossary", formatGlossary(glossaryRef.current, pairRef.current!));
         const res = await fetch("/api/translate", { method: "POST", body: fd });
         if (!res.ok) throw new Error("Falha na tradução.");
         const r = (await res.json()) as TranslateResult;
@@ -59,19 +85,33 @@ export function useConversation() {
             { role: "translation", lang: r.targetLang, text: r.targetText },
           ],
         });
-        dispatch({ type: "SET_STATUS", status: "ouvindo" });
-        if (!mutedRef.current) {
-          dispatch({ type: "SET_STATUS", status: "falando…" });
-          await playBase64Audio(r.audioBase64);
-          dispatch({ type: "SET_STATUS", status: "ouvindo" });
+        if (r.glossary.length) {
+          dispatch({ type: "SET_GLOSSARY", glossary: mergeGlossary(glossaryRef.current, r.glossary) });
         }
+        dispatch({ type: "SET_STATUS", status: mutedRef.current ? "ouvindo" : "falando…" });
+        // pauseMicRef/resumeMicRef são refs atualizadas após useMicVAD (abaixo).
+        // Usar via ref evita stale closure e mantém deps do useCallback vazios.
+        await playWithVadGuard({
+          audioBase64: r.audioBase64,
+          muted: mutedRef.current,
+          play: playBase64Audio,
+          pauseMic: () => pauseMicRef.current(),
+          resumeMic: () => resumeMicRef.current(),
+        });
+        dispatch({ type: "SET_STATUS", status: "ouvindo" });
       } catch (e) {
         dispatch({ type: "SET_STATUS", status: e instanceof Error ? e.message : "erro" });
+      } finally {
+        gateRef.current.release();
       }
     }
   }, []);
 
-  const { listening, start, stop } = useMicVAD(handleSpeech);
+  const { listening, start, stop, pauseMic, resumeMic } = useMicVAD(handleSpeech);
+  // Espelhos em ref para uso dentro do handleSpeech (que é definido antes do
+  // useMicVAD). O padrão é idêntico ao usado para phaseRef, pairRef etc.
+  const pauseMicRef = useRef(pauseMic); pauseMicRef.current = pauseMic;
+  const resumeMicRef = useRef(resumeMic); resumeMicRef.current = resumeMic;
 
   const begin = useCallback(async () => {
     dispatch({ type: "BEGIN" });
@@ -87,6 +127,8 @@ export function useConversation() {
   }, [start]);
 
   const pause = useCallback(() => {
+    // libera a porta caso uma tradução estivesse em curso
+    gateRef.current.release();
     stop();
     dispatch({ type: "SET_STATUS", status: "pausado" });
   }, [stop]);
@@ -101,6 +143,9 @@ export function useConversation() {
   }, [start]);
 
   const reset = useCallback(() => {
+    // libera a porta caso uma tradução estivesse em curso
+    gateRef.current.release();
+    clearSession();
     stop();
     dispatch({ type: "RESET" });
   }, [stop]);

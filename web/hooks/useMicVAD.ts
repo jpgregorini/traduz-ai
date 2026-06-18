@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Assets do VAD/ONNX servidos via CDN (evita copiar wasm/modelo para /public no MVP).
-const VAD_ASSET_PATH = "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@latest/dist/";
-const ORT_WASM_PATH = "https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/";
+// Assets do VAD/ONNX servidos via CDN, com versão fixada (reprodutível, cold load previsível).
+export const VAD_ASSET_PATH =
+  "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/";
+export const ORT_WASM_PATH =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/";
 
 /**
  * Encapsula @ricky0123/vad-web. Chama onSpeechEnd com as amostras
@@ -40,9 +42,19 @@ export function useMicVAD(onSpeechEnd: (audio: Float32Array) => void) {
     setListening(false);
   }, []);
 
+  // Pausa/retoma o VAD para o echo-guard, sem alterar `listening`
+  // (a UI deve continuar mostrando "ouvindo" durante a fala traduzida).
+  const pauseMic = useCallback(() => {
+    vadRef.current?.pause();
+  }, []);
+
+  const resumeMic = useCallback(async () => {
+    await vadRef.current?.start();
+  }, []);
+
   useEffect(() => {
     return () => vadRef.current?.destroy?.();
   }, []);
 
-  return { listening, start, stop };
+  return { listening, start, stop, pauseMic, resumeMic };
 }

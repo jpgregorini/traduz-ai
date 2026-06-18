@@ -18,8 +18,10 @@ export async function POST(req: Request) {
 
     const pair = JSON.parse(pairRaw) as LanguagePair;
     const history = (typeof historyRaw === "string" ? JSON.parse(historyRaw) : []) as Turn[];
+    const glossaryRaw = form.get("glossary");
+    const glossaryText = typeof glossaryRaw === "string" ? glossaryRaw : "";
 
-    const result = await runTranslate({ audio, pair, history });
+    const result = await runTranslate({ audio, pair, history, glossaryText });
     return NextResponse.json(result);
   } catch (e) {
     console.error("[translate] erro:", e);
