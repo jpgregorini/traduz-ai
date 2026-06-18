@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { initialState, reducer } from "@/lib/conversationMachine";
-import { encodeWAV, playBase64Audio } from "@/lib/audio";
+import { encodeWAV } from "@/lib/audio";
+import { sharedAudioPlayer } from "@/lib/audioPlayer";
 import { mergeGlossary, formatGlossary } from "@/lib/glossary";
 import { createBusyGate } from "@/lib/guard";
 import { loadSession, saveSession, clearSession } from "@/lib/session";
@@ -29,6 +30,7 @@ export function useConversation() {
 
   // Porta de exclusão: descarta falas que chegam durante processamento ativo.
   const gateRef = useRef(createBusyGate());
+
 
   // Reidrata a sessão salva (par, turnos, glossário) ao montar.
   useEffect(() => {
@@ -94,7 +96,7 @@ export function useConversation() {
         await playWithVadGuard({
           audioBase64: r.audioBase64,
           muted: mutedRef.current,
-          play: playBase64Audio,
+          play: (b64) => sharedAudioPlayer().play(b64),
           pauseMic: () => pauseMicRef.current(),
           resumeMic: () => resumeMicRef.current(),
         });
@@ -116,6 +118,8 @@ export function useConversation() {
   const begin = useCallback(async () => {
     dispatch({ type: "BEGIN" });
     try {
+      // Destrava o áudio dentro do gesto do usuário (mobile exige isso).
+      await sharedAudioPlayer().unlock();
       await start();
     } catch {
       // Permissão de microfone negada ou VAD indisponível.
@@ -135,6 +139,8 @@ export function useConversation() {
 
   const resume = useCallback(async () => {
     try {
+      // Re-destrava o áudio: o contexto pode ter suspendido durante a pausa.
+      await sharedAudioPlayer().unlock();
       await start();
       dispatch({ type: "SET_STATUS", status: "ouvindo" });
     } catch {

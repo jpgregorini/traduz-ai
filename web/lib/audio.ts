@@ -32,13 +32,3 @@ export function encodeWAV(samples: Float32Array, sampleRate: number): Blob {
   }
   return new Blob([buffer], { type: "audio/wav" });
 }
-
-/** Toca um MP3 recebido em base64. Resolve quando o áudio termina. */
-export function playBase64Audio(base64: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(`data:audio/mp3;base64,${base64}`);
-    audio.onended = () => resolve();
-    audio.onerror = () => reject(new Error("Falha ao tocar áudio."));
-    void audio.play();
-  });
-}
