@@ -42,9 +42,19 @@ export function useMicVAD(onSpeechEnd: (audio: Float32Array) => void) {
     setListening(false);
   }, []);
 
+  // Pausa/retoma o VAD para o echo-guard, sem alterar `listening`
+  // (a UI deve continuar mostrando "ouvindo" durante a fala traduzida).
+  const pauseMic = useCallback(() => {
+    vadRef.current?.pause();
+  }, []);
+
+  const resumeMic = useCallback(async () => {
+    await vadRef.current?.start();
+  }, []);
+
   useEffect(() => {
     return () => vadRef.current?.destroy?.();
   }, []);
 
-  return { listening, start, stop };
+  return { listening, start, stop, pauseMic, resumeMic };
 }
