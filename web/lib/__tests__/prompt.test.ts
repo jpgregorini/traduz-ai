@@ -17,14 +17,25 @@ describe("buildSetupMessages", () => {
 });
 
 describe("buildTranslationMessages", () => {
-  it("inclui os dois idiomas, o histórico e a fala atual", () => {
-    const history: Turn[] = [{ role: "original", lang: "pt", text: "Bom dia" }];
+  const history: Turn[] = [{ role: "original", lang: "pt", text: "Bom dia" }];
+
+  it("inclui idiomas, histórico rotulado e a fala atual", () => {
     const msgs = buildTranslationMessages({ text: "Tudo bem?", pair: par, history });
     const blob = JSON.stringify(msgs);
     expect(blob).toContain("Português");
     expect(blob).toContain("English");
-    expect(blob).toContain("Bom dia");      // contexto
-    expect(blob).toContain("Tudo bem?");    // fala atual
+    expect(blob).toContain("(pt)");        // rótulo de idioma no histórico
+    expect(blob).toContain("Bom dia");
+    expect(blob).toContain("Tudo bem?");
     expect(blob.toLowerCase()).toContain("json");
+    expect(blob).toContain("glossary");    // instrui extração de glossário
+  });
+
+  it("injeta o glossário recebido", () => {
+    const msgs = buildTranslationMessages({
+      text: "oi", pair: par, history: [],
+      glossary: "- João: pt=João, en=John",
+    });
+    expect(JSON.stringify(msgs)).toContain("John");
   });
 });
