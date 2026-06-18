@@ -32,6 +32,15 @@ export async function chatJSON(
   return c.choices[0]?.message?.content ?? "";
 }
 
+/** Chat completion que devolve texto livre. */
+export async function chatText(
+  messages: ChatCompletionMessageParam[],
+  model = "gpt-4o-mini",
+): Promise<string> {
+  const c = await getClient().chat.completions.create({ model, messages, temperature: 0.3 });
+  return c.choices[0]?.message?.content ?? "";
+}
+
 /** Sintetiza voz a partir de texto na voz indicada; devolve MP3 em base64. */
 export async function synthesize(text: string, voice = "alloy"): Promise<string> {
   const speech = await getClient().audio.speech.create({
