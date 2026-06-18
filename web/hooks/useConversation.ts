@@ -104,6 +104,8 @@ export function useConversation() {
   }, [start]);
 
   const pause = useCallback(() => {
+    // libera a porta caso uma tradução estivesse em curso
+    gateRef.current.release();
     stop();
     dispatch({ type: "SET_STATUS", status: "pausado" });
   }, [stop]);
@@ -118,6 +120,8 @@ export function useConversation() {
   }, [start]);
 
   const reset = useCallback(() => {
+    // libera a porta caso uma tradução estivesse em curso
+    gateRef.current.release();
     stop();
     dispatch({ type: "RESET" });
   }, [stop]);
