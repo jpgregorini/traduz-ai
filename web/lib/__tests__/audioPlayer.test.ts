@@ -17,6 +17,9 @@ function fakeContext() {
       ctx.state = "running";
     }),
     decodeAudioData: vi.fn(async (_buf: ArrayBuffer) => ({ duration: 1 } as AudioBuffer)),
+    createBuffer: vi.fn(
+      (_ch: number, _len: number, _rate: number) => ({ duration: 0 } as AudioBuffer),
+    ),
     createBufferSource: vi.fn(() => {
       const src = {
         buffer: null as AudioBuffer | null,
@@ -41,10 +44,21 @@ describe("createAudioPlayer", () => {
     expect(ctx.state).toBe("running");
   });
 
-  it("play decodifica o base64 e toca pela fonte, resolvendo quando termina", async () => {
+  it("unlock toca um buffer silencioso dentro do gesto (destrava o iOS)", async () => {
     const { ctx, sources } = fakeContext();
     const player = createAudioPlayer(() => ctx);
     await player.unlock();
+    // No iOS, resume() sozinho não basta: é preciso disparar uma fonte de
+    // áudio (buffer silencioso) dentro do gesto para liberar a saída.
+    expect(ctx.createBuffer).toHaveBeenCalled();
+    expect(sources).toHaveLength(1);
+    expect(sources[0].connect).toHaveBeenCalledWith(ctx.destination);
+    expect(sources[0].start).toHaveBeenCalled();
+  });
+
+  it("play decodifica o base64 e toca pela fonte, resolvendo quando termina", async () => {
+    const { ctx, sources } = fakeContext();
+    const player = createAudioPlayer(() => ctx);
     await player.play("QUJD"); // "ABC" em base64
     expect(ctx.decodeAudioData).toHaveBeenCalledTimes(1);
     expect(sources).toHaveLength(1);

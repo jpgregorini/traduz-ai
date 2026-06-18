@@ -15,6 +15,7 @@ export interface AudioContextLike {
   readonly state: AudioContextState;
   resume(): Promise<void>;
   decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
+  createBuffer(channels: number, length: number, sampleRate: number): AudioBuffer;
   createBufferSource(): AudioBufferSourceNode;
   readonly destination: AudioDestinationNode;
 }
@@ -62,7 +63,16 @@ export function createAudioPlayer(
   }
 
   async function unlock(): Promise<void> {
-    await ensureRunning(ensureContext());
+    const c = ensureContext();
+    // iOS/WebKit: resume() deixa o contexto "running", mas a primeira
+    // reprodução real sai muda. É preciso disparar uma fonte (buffer
+    // silencioso de 1 amostra) ainda dentro do gesto para liberar a saída.
+    const silent = c.createBuffer(1, 1, 22050);
+    const source = c.createBufferSource();
+    source.buffer = silent;
+    source.connect(c.destination);
+    source.start(0);
+    await ensureRunning(c);
   }
 
   async function play(base64Mp3: string): Promise<void> {
