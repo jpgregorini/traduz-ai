@@ -32,11 +32,11 @@ export async function chatJSON(
   return c.choices[0]?.message?.content ?? "";
 }
 
-/** Sintetiza voz a partir de texto; devolve MP3 em base64. */
-export async function synthesize(text: string): Promise<string> {
+/** Sintetiza voz a partir de texto na voz indicada; devolve MP3 em base64. */
+export async function synthesize(text: string, voice = "alloy"): Promise<string> {
   const speech = await getClient().audio.speech.create({
     model: "gpt-4o-mini-tts",
-    voice: "alloy",
+    voice,
     input: text,
   });
   const buf = Buffer.from(await speech.arrayBuffer());
