@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { initialState, reducer } from "@/lib/conversationMachine";
 import { encodeWAV, playBase64Audio } from "@/lib/audio";
 import { mergeGlossary, formatGlossary } from "@/lib/glossary";
 import { createBusyGate } from "@/lib/guard";
+import { loadSession, saveSession, clearSession } from "@/lib/session";
 import { playWithVadGuard } from "@/lib/playback";
 import { useMicVAD } from "@/hooks/useMicVAD";
 import type { LanguagePair, TranslateResult, Turn } from "@/lib/types";
@@ -28,6 +29,21 @@ export function useConversation() {
 
   // Porta de exclusão: descarta falas que chegam durante processamento ativo.
   const gateRef = useRef(createBusyGate());
+
+  // Reidrata a sessão salva (par, turnos, glossário) ao montar.
+  useEffect(() => {
+    const saved = loadSession();
+    if (saved) {
+      dispatch({ type: "HYDRATE", pair: saved.pair, turns: saved.turns, glossary: saved.glossary });
+    }
+  }, []);
+
+  // Persiste sempre que par/turnos/glossário mudarem em sessão ativa.
+  useEffect(() => {
+    if (state.phase === "ACTIVE" && state.pair) {
+      saveSession({ pair: state.pair, turns: state.turns, glossary: state.glossary });
+    }
+  }, [state.phase, state.pair, state.turns, state.glossary]);
 
   const handleSpeech = useCallback(async (audio: Float32Array) => {
     const wav = encodeWAV(audio, SAMPLE_RATE);
@@ -129,6 +145,7 @@ export function useConversation() {
   const reset = useCallback(() => {
     // libera a porta caso uma tradução estivesse em curso
     gateRef.current.release();
+    clearSession();
     stop();
     dispatch({ type: "RESET" });
   }, [stop]);
