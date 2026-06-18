@@ -1,4 +1,4 @@
-import type { LanguagePair, Turn } from "@/lib/types";
+import type { LanguagePair, Turn, GlossaryEntry } from "@/lib/types";
 
 export type Phase = "IDLE" | "SETUP" | "ACTIVE" | "ERROR";
 
@@ -9,6 +9,7 @@ export type ConversationState = {
   status: string; // rótulo do indicador (ex.: "ouvindo")
   muted: boolean;
   error?: string;
+  glossary: GlossaryEntry[];
 };
 
 export type Action =
@@ -18,13 +19,16 @@ export type Action =
   | { type: "SET_STATUS"; status: string }
   | { type: "ERROR"; error: string }
   | { type: "TOGGLE_MUTE" }
-  | { type: "RESET" };
+  | { type: "RESET" }
+  | { type: "SET_GLOSSARY"; glossary: GlossaryEntry[] }
+  | { type: "HYDRATE"; pair: LanguagePair; turns: Turn[]; glossary: GlossaryEntry[] };
 
 export const initialState: ConversationState = {
   phase: "IDLE",
   turns: [],
   status: "",
   muted: false,
+  glossary: [],
 };
 
 /** Reducer puro da sessão de conversa. */
@@ -44,6 +48,17 @@ export function reducer(state: ConversationState, action: Action): ConversationS
       return { ...state, muted: !state.muted };
     case "RESET":
       return initialState;
+    case "SET_GLOSSARY":
+      return { ...state, glossary: action.glossary };
+    case "HYDRATE":
+      return {
+        ...state,
+        phase: "ACTIVE",
+        pair: action.pair,
+        turns: action.turns,
+        glossary: action.glossary,
+        status: "ouvindo",
+      };
     default:
       return state;
   }

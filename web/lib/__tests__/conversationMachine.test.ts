@@ -40,3 +40,26 @@ describe("conversationMachine", () => {
     expect(s).toEqual(initialState);
   });
 });
+
+describe("glossário e hidratação", () => {
+  it("SET_GLOSSARY substitui o glossário", () => {
+    const s = reducer(initialState, {
+      type: "SET_GLOSSARY",
+      glossary: [{ term: "João", translations: { pt: "João", en: "John" } }],
+    });
+    expect(s.glossary).toHaveLength(1);
+    expect(s.glossary[0].term).toBe("João");
+  });
+
+  it("HYDRATE restaura par, turnos e glossário em ACTIVE", () => {
+    const s = reducer(initialState, {
+      type: "HYDRATE",
+      pair: { langA: { code: "pt", name: "Português" }, langB: { code: "en", name: "English" } },
+      turns: [{ role: "original", lang: "pt", text: "oi" }],
+      glossary: [],
+    });
+    expect(s.phase).toBe("ACTIVE");
+    expect(s.turns).toHaveLength(1);
+    expect(s.status).toBe("ouvindo");
+  });
+});

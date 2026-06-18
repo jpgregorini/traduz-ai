@@ -11,6 +11,9 @@ export type Turn = {
   text: string;
 };
 
+/** Termo do glossário com traduções por código de idioma. */
+export type GlossaryEntry = { term: string; translations: Record<string, string> };
+
 /** Resultado de uma tradução completa (texto + voz). */
 export type TranslateResult = {
   sourceText: string;
@@ -18,4 +21,5 @@ export type TranslateResult = {
   targetText: string;
   targetLang: string;
   audioBase64: string; // MP3 em base64
+  glossary?: GlossaryEntry[]; // termos novos/canônicos desta fala
 };
