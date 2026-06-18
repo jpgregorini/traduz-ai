@@ -3,6 +3,7 @@
 import { useCallback, useReducer, useRef } from "react";
 import { initialState, reducer } from "@/lib/conversationMachine";
 import { encodeWAV, playBase64Audio } from "@/lib/audio";
+import { mergeGlossary, formatGlossary } from "@/lib/glossary";
 import { createBusyGate } from "@/lib/guard";
 import { playWithVadGuard } from "@/lib/playback";
 import { useMicVAD } from "@/hooks/useMicVAD";
@@ -22,6 +23,8 @@ export function useConversation() {
   turnsRef.current = state.turns;
   const mutedRef = useRef(state.muted);
   mutedRef.current = state.muted;
+  const glossaryRef = useRef(state.glossary);
+  glossaryRef.current = state.glossary;
 
   // Porta de exclusão: descarta falas que chegam durante processamento ativo.
   const gateRef = useRef(createBusyGate());
@@ -54,6 +57,7 @@ export function useConversation() {
         fd.append("audio", wav, "fala.wav");
         fd.append("pair", JSON.stringify(pairRef.current));
         fd.append("history", JSON.stringify(turnsRef.current.slice(-HISTORY_WINDOW)));
+        fd.append("glossary", formatGlossary(glossaryRef.current, pairRef.current!));
         const res = await fetch("/api/translate", { method: "POST", body: fd });
         if (!res.ok) throw new Error("Falha na tradução.");
         const r = (await res.json()) as TranslateResult;
@@ -65,6 +69,9 @@ export function useConversation() {
             { role: "translation", lang: r.targetLang, text: r.targetText },
           ],
         });
+        if (r.glossary && r.glossary.length) {
+          dispatch({ type: "SET_GLOSSARY", glossary: mergeGlossary(glossaryRef.current, r.glossary) });
+        }
         dispatch({ type: "SET_STATUS", status: mutedRef.current ? "ouvindo" : "falando…" });
         // pauseMicRef/resumeMicRef são refs atualizadas após useMicVAD (abaixo).
         // Usar via ref evita stale closure e mantém deps do useCallback vazios.
