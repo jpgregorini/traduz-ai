@@ -23,7 +23,7 @@ describe("parseLanguageSetup", () => {
 describe("parseTranslation", () => {
   it("aceita sourceLang válido e targetText", () => {
     const r = parseTranslation('{"sourceLang":"pt","targetText":"Good morning"}', par);
-    expect(r).toEqual({ sourceLang: "pt", targetText: "Good morning" });
+    expect(r).toEqual({ sourceLang: "pt", targetText: "Good morning", glossary: [] });
   });
   it("força sourceLang ao idioma A quando vem fora do par", () => {
     const r = parseTranslation('{"sourceLang":"fr","targetText":"x"}', par);
@@ -31,5 +31,31 @@ describe("parseTranslation", () => {
   });
   it("lança quando targetText está vazio", () => {
     expect(() => parseTranslation('{"sourceLang":"pt","targetText":""}', par)).toThrow();
+  });
+});
+
+describe("parseTranslation — glossário", () => {
+  const parLang: LanguagePair = {
+    langA: { code: "pt", name: "Português" },
+    langB: { code: "en", name: "English" },
+  };
+
+  it("extrai o glossário quando presente", () => {
+    const raw = '{"sourceLang":"pt","targetText":"John","glossary":[{"term":"João","translations":{"pt":"João","en":"John"}}]}';
+    const out = parseTranslation(raw, parLang);
+    expect(out.glossary).toHaveLength(1);
+    expect(out.glossary?.[0].term).toBe("João");
+  });
+
+  it("glossário ausente vira lista vazia", () => {
+    const raw = '{"sourceLang":"pt","targetText":"John"}';
+    const out = parseTranslation(raw, parLang);
+    expect(out.glossary).toEqual([]);
+  });
+
+  it("glossário malformado é ignorado (lista vazia)", () => {
+    const raw = '{"sourceLang":"pt","targetText":"John","glossary":"oops"}';
+    const out = parseTranslation(raw, parLang);
+    expect(out.glossary).toEqual([]);
   });
 });

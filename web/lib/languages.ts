@@ -1,4 +1,4 @@
-import type { LanguagePair } from "@/lib/types";
+import type { GlossaryEntry, LanguagePair } from "@/lib/types";
 
 /** Converte a resposta JSON do setup em um par de idiomas validado. */
 export function parseLanguageSetup(raw: string): LanguagePair {
@@ -21,11 +21,11 @@ export function parseLanguageSetup(raw: string): LanguagePair {
   };
 }
 
-/** Valida a resposta JSON da tradução; clampa sourceLang ao par. */
+/** Valida a resposta JSON da tradução; clampa sourceLang ao par; extrai glossário com degradação graciosa. */
 export function parseTranslation(
   raw: string,
   pair: LanguagePair,
-): { sourceLang: string; targetText: string } {
+): { sourceLang: string; targetText: string; glossary: GlossaryEntry[] } {
   let obj: unknown;
   try {
     obj = JSON.parse(raw);
@@ -42,5 +42,11 @@ export function parseTranslation(
     // Fora do par: assume idioma A (alvo cairá em B).
     sourceLang = pair.langA.code;
   }
-  return { sourceLang, targetText };
+  // Extrai glossário com degradação graciosa: ausente, malformado ou inválido vira lista vazia.
+  const glossary: GlossaryEntry[] = Array.isArray(o?.glossary)
+    ? o.glossary
+        .filter((g: any) => g && typeof g.term === "string" && g.translations && typeof g.translations === "object")
+        .map((g: any) => ({ term: String(g.term), translations: g.translations as Record<string, string> }))
+    : [];
+  return { sourceLang, targetText, glossary };
 }
